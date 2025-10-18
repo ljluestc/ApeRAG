@@ -23,6 +23,7 @@ from aperag.db.models import AuditLog, AuditResource, Role, User
 from aperag.schema import view_models
 from aperag.service.audit_service import audit_service
 from aperag.views.auth import required_user
+from aperag.views.dependencies import pagination_params
 
 router = APIRouter()
 
@@ -38,8 +39,7 @@ async def list_audit_logs(
     status_code: Optional[int] = Query(None, description="Filter by status code"),
     start_date: Optional[datetime] = Query(None, description="Filter by start date"),
     end_date: Optional[datetime] = Query(None, description="Filter by end date"),
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Page size"),
+    pagination: dict = Depends(pagination_params),
     sort_by: Optional[str] = Query(None, description="Sort field"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     search: Optional[str] = Query(None, description="Search term"),
@@ -61,7 +61,7 @@ async def list_audit_logs(
     if user.role != Role.ADMIN:
         filter_user_id = user.id
 
-    result = await audit_service.list_audit_logs(
+    result = await audit_service.list_audit_logs_offset(
         user_id=filter_user_id,
         resource_type=audit_resource,
         api_name=api_name,
@@ -69,8 +69,8 @@ async def list_audit_logs(
         status_code=status_code,
         start_date=start_date,
         end_date=end_date,
-        page=page,
-        page_size=page_size,
+        offset=pagination["offset"],
+        limit=pagination["limit"],
         sort_by=sort_by,
         sort_order=sort_order,
         search=search,
@@ -103,15 +103,7 @@ async def list_audit_logs(
             )
         )
 
-    return view_models.AuditLogList(
-        items=items,
-        total=result.total,
-        page=result.page,
-        page_size=result.page_size,
-        total_pages=result.total_pages,
-        has_next=result.has_next,
-        has_prev=result.has_prev,
-    )
+    return result
 
 
 @router.get("/audit-logs/{audit_id}", tags=["audit"])

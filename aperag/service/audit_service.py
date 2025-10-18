@@ -283,6 +283,121 @@ class AuditService:
 
         return PaginationHelper.build_response(items=processed_logs, total=total, page=page, page_size=page_size)
 
+    async def list_audit_logs_offset(
+        self,
+        offset: int = 0,
+        limit: int = 50,
+        sort_by: str = None,
+        sort_order: str = "desc",
+        search: str = None,
+        user_id: Optional[str] = None,
+        resource_type: Optional[AuditResource] = None,
+        api_name: Optional[str] = None,
+        http_method: Optional[str] = None,
+        status_code: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ):
+        """List audit logs with offset-based pagination"""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+
+        # Define sort field mapping
+        sort_mapping = {
+            "created": AuditLog.gmt_created,
+            "start_time": AuditLog.start_time,
+            "end_time": AuditLog.end_time,
+            "duration": AuditLog.start_time,  # Use start_time as proxy for duration sorting
+            "user_id": AuditLog.user_id,
+            "api_name": AuditLog.api_name,
+            "status_code": AuditLog.status_code,
+        }
+
+        # Define search fields mapping
+        search_fields = {"api_name": AuditLog.api_name, "path": AuditLog.path}
+
+        async def _list_audit_logs(session):
+            from sqlalchemy import func
+
+            # Build base query
+            stmt = select(AuditLog)
+
+            # Add filters
+            conditions = []
+            if user_id:
+                conditions.append(AuditLog.user_id == user_id)
+            if resource_type:
+                conditions.append(AuditLog.resource_type == resource_type)
+            if api_name:
+                conditions.append(AuditLog.api_name.like(f"%{api_name}%"))
+            if http_method:
+                conditions.append(AuditLog.http_method == http_method)
+            if status_code:
+                conditions.append(AuditLog.status_code == status_code)
+            if start_date:
+                conditions.append(AuditLog.gmt_created >= start_date)
+            if end_date:
+                conditions.append(AuditLog.gmt_created <= end_date)
+
+            if conditions:
+                stmt = stmt.where(and_(*conditions))
+
+            # Get total count
+            count_query = select(func.count()).select_from(stmt.subquery())
+            total = await session.scalar(count_query) or 0
+
+            # Apply sorting
+            if sort_by and sort_by in sort_mapping:
+                sort_field = sort_mapping[sort_by]
+                if sort_order == "asc":
+                    stmt = stmt.order_by(sort_field)
+                else:
+                    stmt = stmt.order_by(desc(sort_field))
+            else:
+                stmt = stmt.order_by(desc(AuditLog.gmt_created))
+
+            # Apply offset and limit
+            stmt = stmt.offset(offset).limit(limit)
+
+            # Execute query
+            result = await session.execute(stmt)
+            audit_logs = result.scalars().all()
+
+            return audit_logs, total
+
+        # Execute query with proper session management
+        audit_logs = None
+        total = 0
+        async for session in get_async_session():
+            audit_logs, total = await _list_audit_logs(session)
+            break  # Only process one session
+
+        # Post-process audit logs outside of session to avoid long session occupation
+        processed_logs = []
+        for log in audit_logs:
+            if log.resource_type and log.path:
+                # Convert string to enum if needed
+                resource_type_enum = log.resource_type
+                if isinstance(log.resource_type, str):
+                    try:
+                        resource_type_enum = AuditResource(log.resource_type)
+                    except ValueError:
+                        resource_type_enum = None
+
+                if resource_type_enum:
+                    log.resource_id = self.extract_resource_id_from_path(log.path, resource_type_enum)
+                else:
+                    log.resource_id = None
+
+            # Calculate duration if both times are available
+            if log.start_time and log.end_time:
+                log.duration_ms = log.end_time - log.start_time
+            else:
+                log.duration_ms = None
+
+            processed_logs.append(log)
+
+        return OffsetPaginationHelper.build_response(processed_logs, total, offset, limit)
+
 
 # Global audit service instance
 audit_service = AuditService()

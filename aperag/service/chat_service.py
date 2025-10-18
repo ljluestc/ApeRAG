@@ -197,6 +197,55 @@ class ChatService:
 
         return await self.db_ops._execute_query(_execute_paginated_query)
 
+    async def list_chats_offset(
+        self,
+        user: str,
+        bot_id: str,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> view_models.OffsetPaginatedResponse[view_models.Chat]:
+        """List chats with offset-based pagination."""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+
+        # Define sort field mapping
+        sort_mapping = {
+            "created": db_models.Chat.gmt_created,
+        }
+
+        async def _execute_paginated_query(session):
+            from sqlalchemy import and_, desc, select, func
+
+            # Build base query
+            query = select(db_models.Chat).where(
+                and_(
+                    db_models.Chat.user == user,
+                    db_models.Chat.bot_id == bot_id,
+                    db_models.Chat.status != db_models.ChatStatus.DELETED,
+                )
+            )
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total = await session.scalar(count_query) or 0
+
+            # Apply sorting and pagination
+            query = query.order_by(desc(db_models.Chat.gmt_created))
+            query = query.offset(offset).limit(limit)
+
+            # Execute query
+            result = await session.execute(query)
+            chats = result.scalars().all()
+
+            # Build chat responses
+            chat_responses = []
+            for chat in chats:
+                chat_responses.append(self.build_chat_response(chat))
+
+            return chat_responses, total
+
+        chats, total = await self.db_ops._execute_query(_execute_paginated_query)
+        return OffsetPaginationHelper.build_response(chats, total, offset, limit)
+
     async def get_chat(self, user: str, bot_id: str, chat_id: str) -> view_models.ChatDetails:
         # Import here to avoid circular imports
         from aperag.utils.history import query_chat_messages

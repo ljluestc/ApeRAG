@@ -569,6 +569,120 @@ class DocumentService:
 
         return await self.db_ops._execute_query(_execute_paginated_query)
 
+    async def list_documents_offset(
+        self,
+        user: str,
+        collection_id: str,
+        offset: int = 0,
+        limit: int = 50,
+        sort_by: str = None,
+        sort_order: str = "desc",
+        search: str = None,
+    ) -> view_models.OffsetPaginatedResponse[view_models.Document]:
+        """List documents with offset-based pagination, sorting and search capabilities."""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+
+        if not user:
+            await marketplace_service.validate_marketplace_collection(collection_id)
+
+        # Define sort field mapping
+        sort_mapping = {
+            "name": db_models.Document.name,
+            "created": db_models.Document.gmt_created,
+            "updated": db_models.Document.gmt_updated,
+            "size": db_models.Document.size,
+            "status": db_models.Document.status,
+        }
+
+        # Define search fields mapping
+        search_fields = {"name": db_models.Document.name}
+
+        async def _execute_paginated_query(session):
+            from sqlalchemy import and_, desc, select
+
+            # Step 1: Build base document query for pagination (without indexes)
+            base_query = select(db_models.Document).where(
+                and_(
+                    db_models.Document.user == user,
+                    db_models.Document.collection_id == collection_id,
+                    db_models.Document.status != db_models.DocumentStatus.DELETED,
+                    db_models.Document.status != db_models.DocumentStatus.UPLOADED,
+                    db_models.Document.status != db_models.DocumentStatus.EXPIRED,
+                )
+            )
+
+            # Apply search filter
+            if search:
+                search_term = f"%{search}%"
+                base_query = base_query.where(db_models.Document.name.ilike(search_term))
+
+            # Get total count
+            from sqlalchemy import func
+            count_query = select(func.count()).select_from(base_query.subquery())
+            total = await session.scalar(count_query) or 0
+
+            # Apply sorting
+            if sort_by and sort_by in sort_mapping:
+                sort_field = sort_mapping[sort_by]
+                if sort_order == "asc":
+                    base_query = base_query.order_by(sort_field)
+                else:
+                    base_query = base_query.order_by(desc(sort_field))
+            else:
+                base_query = base_query.order_by(desc(db_models.Document.gmt_created))
+
+            # Apply offset and limit
+            base_query = base_query.offset(offset).limit(limit)
+
+            # Execute query
+            result = await session.execute(base_query)
+            documents = result.scalars().all()
+
+            # Step 2: Batch load index information for the paginated documents
+            if documents:
+                document_ids = [doc.id for doc in documents]
+
+                # Query all indexes for the paginated documents in one go
+                index_query = select(db_models.DocumentIndex).where(
+                    db_models.DocumentIndex.document_id.in_(document_ids)
+                )
+                index_result = await session.execute(index_query)
+                indexes_data = index_result.scalars().all()
+
+                # Group indexes by document_id
+                indexes_by_doc = {}
+                for index in indexes_data:
+                    if index.document_id not in indexes_by_doc:
+                        indexes_by_doc[index.document_id] = {}
+                    indexes_by_doc[index.document_id][index.index_type] = {
+                        "index_type": index.index_type,
+                        "status": index.status,
+                        "created_at": index.gmt_created,
+                        "updated_at": index.gmt_updated,
+                        "error_message": index.error_message,
+                        "index_data": index.index_data,
+                    }
+
+                # Attach index information to documents
+                for doc in documents:
+                    # Initialize index information for all types
+                    doc.indexes = {"VECTOR": None, "FULLTEXT": None, "GRAPH": None, "SUMMARY": None, "VISION": None}
+
+                    # Add actual index data if exists
+                    if doc.id in indexes_by_doc:
+                        doc.indexes.update(indexes_by_doc[doc.id])
+
+            # Step 3: Build document responses
+            document_responses = []
+            for doc in documents:
+                doc_response = await self._build_document_response(doc)
+                document_responses.append(doc_response)
+
+            return document_responses, total
+
+        documents, total = await self.db_ops._execute_query(_execute_paginated_query)
+        return OffsetPaginationHelper.build_response(documents, total, offset, limit)
+
     async def get_document(self, user: str, collection_id: str, document_id: str) -> view_models.Document:
         """Get a specific document by ID."""
         if not user:

@@ -26,6 +26,7 @@ from aperag.schema import view_models
 from aperag.service.document_service import document_service
 from aperag.service.marketplace_collection_service import marketplace_collection_service
 from aperag.views.auth import optional_user
+from aperag.views.dependencies import pagination_params
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +54,13 @@ async def get_marketplace_collection(
 async def list_marketplace_collection_documents(
     request: Request,
     collection_id: str,
-    page: int = Query(1, ge=1, description="Page number (1-based)"),
-    page_size: int = Query(10, ge=1, le=100, description="Number of items per page"),
+    pagination: dict = Depends(pagination_params),
     sort_by: str = Query("created", description="Field to sort by"),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
     search: str = Query(None, description="Search documents by name"),
     user: User = Depends(optional_user),
 ):
-    """List documents in MarketplaceCollection (read-only) with pagination, sorting and search capabilities"""
+    """List documents in MarketplaceCollection (read-only) with offset-based pagination, sorting and search capabilities"""
     try:
         # Check marketplace access first (all logged-in users can view published collections)
         user_id = str(user.id) if user else ""
@@ -68,25 +68,17 @@ async def list_marketplace_collection_documents(
 
         # Use the collection owner's user_id to query documents, not the current user's id
         owner_user_id = marketplace_info["owner_user_id"]
-        result = await document_service.list_documents(
+        result = await document_service.list_documents_offset(
             user=str(owner_user_id),
             collection_id=collection_id,
-            page=page,
-            page_size=page_size,
+            offset=pagination["offset"],
+            limit=pagination["limit"],
             sort_by=sort_by,
             sort_order=sort_order,
             search=search,
         )
 
-        return {
-            "items": result.items,
-            "total": result.total,
-            "page": result.page,
-            "page_size": result.page_size,
-            "total_pages": result.total_pages,
-            "has_next": result.has_next,
-            "has_prev": result.has_prev,
-        }
+        return result
     except CollectionNotPublishedError:
         raise HTTPException(status_code=404, detail="Collection not found or not published")
     except CollectionMarketplaceAccessDeniedError as e:

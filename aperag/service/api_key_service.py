@@ -52,6 +52,24 @@ class ApiKeyService:
             items.append(self.to_api_key_model(token))
         return ApiKeyList(items=items)
 
+    async def list_api_keys_offset(self, user: str, offset: int = 0, limit: int = 50):
+        """List API keys with offset-based pagination"""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+        
+        # Get total count
+        all_tokens = await self.db_ops.query_api_keys(user, is_system=False)
+        total = len(all_tokens)
+        
+        # Apply pagination
+        paginated_tokens = all_tokens[offset:offset + limit] if offset < total else []
+        
+        # Convert to API models
+        items = []
+        for token in paginated_tokens:
+            items.append(self.to_api_key_model(token))
+        
+        return OffsetPaginationHelper.build_response(items, total, offset, limit)
+
     async def create_api_key(self, user: str, api_key_create: ApiKeyCreate) -> ApiKeyModel:
         """Create a new API key"""
         # For single operations, use DatabaseOps directly

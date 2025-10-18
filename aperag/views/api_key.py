@@ -20,14 +20,19 @@ from aperag.schema.view_models import ApiKeyCreate, ApiKeyList, ApiKeyUpdate
 from aperag.service.api_key_service import api_key_service
 from aperag.utils.audit_decorator import audit
 from aperag.views.auth import required_user
+from aperag.views.dependencies import pagination_params
 
 router = APIRouter()
 
 
 @router.get("/apikeys", tags=["api_keys"])
-async def list_api_keys_view(request: Request, user: User = Depends(required_user)) -> ApiKeyList:
-    """List all API keys for the current user"""
-    return await api_key_service.list_api_keys(str(user.id))
+async def list_api_keys_view(
+    request: Request, 
+    pagination: dict = Depends(pagination_params),
+    user: User = Depends(required_user)
+):
+    """List all API keys for the current user with pagination"""
+    return await api_key_service.list_api_keys_offset(str(user.id), pagination["offset"], pagination["limit"])
 
 
 @router.post("/apikeys", tags=["api_keys"])

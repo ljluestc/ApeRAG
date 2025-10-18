@@ -26,6 +26,7 @@ from aperag.exceptions import (
 from aperag.schema import view_models
 from aperag.service.marketplace_service import marketplace_service
 from aperag.views.auth import optional_user, required_user
+from aperag.views.dependencies import pagination_params
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +35,14 @@ router = APIRouter(tags=["marketplace"])
 
 @router.get("/marketplace/collections", response_model=view_models.SharedCollectionList)
 async def list_marketplace_collections(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(30, ge=1, le=100),
+    pagination: dict = Depends(pagination_params),
     user: User = Depends(optional_user),
 ) -> view_models.SharedCollectionList:
-    """List all published Collections in marketplace"""
+    """List all published Collections in marketplace with offset-based pagination"""
     try:
         # Allow unauthenticated access - use empty user_id for anonymous users
         user_id = user.id if user else ""
-        result = await marketplace_service.list_published_collections(user_id, page, page_size)
+        result = await marketplace_service.list_published_collections_offset(user_id, pagination["offset"], pagination["limit"])
         return result
     except Exception as e:
         logger.error(f"Error listing marketplace collections: {e}")
@@ -51,13 +51,12 @@ async def list_marketplace_collections(
 
 @router.get("/marketplace/collections/subscriptions", response_model=view_models.SharedCollectionList)
 async def list_user_subscribed_collections(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(30, ge=1, le=100),
+    pagination: dict = Depends(pagination_params),
     user: User = Depends(required_user),
 ) -> view_models.SharedCollectionList:
-    """Get user's subscribed Collections"""
+    """Get user's subscribed Collections with offset-based pagination"""
     try:
-        result = await marketplace_service.list_user_subscribed_collections(user.id, page, page_size)
+        result = await marketplace_service.list_user_subscribed_collections_offset(user.id, pagination["offset"], pagination["limit"])
         return result
     except Exception as e:
         logger.error(f"Error listing user subscribed collections: {e}")

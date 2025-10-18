@@ -27,6 +27,7 @@ from aperag.service.chat_title_service import chat_title_service
 from aperag.service.collection_service import collection_service
 from aperag.utils.audit_decorator import audit
 from aperag.views.auth import UserManager, authenticate_websocket_user, get_user_manager, optional_user, required_user
+from aperag.views.dependencies import pagination_params
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +44,10 @@ async def create_chat_view(request: Request, bot_id: str, user: User = Depends(r
 async def list_chats_view(
     request: Request,
     bot_id: str,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    pagination: dict = Depends(pagination_params),
     user: User = Depends(required_user),
-) -> view_models.ChatList:
-    return await chat_service_global.list_chats(str(user.id), bot_id, page, page_size)
+) -> view_models.OffsetPaginatedResponse[view_models.Chat]:
+    return await chat_service_global.list_chats_offset(str(user.id), bot_id, pagination["offset"], pagination["limit"])
 
 
 @router.get("/bots/{bot_id}/chats/{chat_id}")

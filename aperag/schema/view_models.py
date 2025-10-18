@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, Optional, Union
+from typing import Any, Generic, List, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, confloat, conint
+
+T = TypeVar("T")
 
 
 class ModelSpec(BaseModel):
@@ -497,6 +499,24 @@ class PaginatedResponse(BaseModel):
     has_prev: Optional[bool] = Field(
         None, description='Whether there is a previous page', examples=[False]
     )
+
+
+class OffsetPaginatedResponse(BaseModel, Generic[T]):
+    """
+    Offset-based paginated response following the proposed API structure.
+    
+    This provides the exact structure requested in the issue:
+    {
+      "total": 1250,
+      "limit": 25,
+      "offset": 100,
+      "data": [...]
+    }
+    """
+    total: conint(ge=0) = Field(..., description='Total number of items available', examples=[1250])
+    limit: conint(ge=1) = Field(..., description='Limit that was used for this request', examples=[25])
+    offset: conint(ge=0) = Field(..., description='Offset that was used for this request', examples=[100])
+    data: List[T] = Field(..., description='Array of items for the current page')
 
 
 class ChatList(PaginatedResponse):

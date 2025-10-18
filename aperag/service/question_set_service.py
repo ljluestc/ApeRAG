@@ -71,6 +71,20 @@ class QuestionSetService:
             user_id=user_id, collection_id=collection_id, page=page, page_size=page_size
         )
 
+    async def list_question_sets_offset(
+        self, user_id: str, collection_id: str | None, offset: int, limit: int
+    ):
+        """Lists all question sets for a user with offset-based pagination."""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+        
+        # Convert offset to page for existing method
+        page = (offset // limit) + 1
+        question_sets, total = await self.db_ops.list_question_sets_by_user(
+            user_id=user_id, collection_id=collection_id, page=page, page_size=limit
+        )
+        
+        return OffsetPaginationHelper.build_response(question_sets, total, offset, limit)
+
     async def update_question_set(
         self, qs_id: str, request: view_models.QuestionSetUpdate, user_id: str
     ) -> QuestionSet | None:

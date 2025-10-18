@@ -23,6 +23,7 @@ from aperag.service.collection_service import collection_service
 from aperag.service.evaluation_service import evaluation_service
 from aperag.service.question_set_service import question_set_service
 from aperag.views.auth import required_user
+from aperag.views.dependencies import pagination_params
 
 router = APIRouter(tags=["evaluation"])
 
@@ -33,14 +34,13 @@ MAX_QUESTIONS_PER_SET = 1000
 @router.get("/question-sets", response_model=view_models.QuestionSetList)
 async def list_question_sets(
     collection_id: str | None = Query(None),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    pagination: dict = Depends(pagination_params),
     user: User = Depends(required_user),
 ):
-    items, total = await question_set_service.list_question_sets(
-        user_id=user.id, collection_id=collection_id, page=page, page_size=page_size
+    result = await question_set_service.list_question_sets_offset(
+        user_id=user.id, collection_id=collection_id, offset=pagination["offset"], limit=pagination["limit"]
     )
-    return {"items": items, "total": total, "page": page, "page_size": page_size}
+    return result
 
 
 @router.post("/question-sets", response_model=view_models.QuestionSet)

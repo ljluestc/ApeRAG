@@ -137,6 +137,40 @@ class MarketplaceService:
 
         return view_models.SharedCollectionList(items=collections, total=total, page=page, page_size=page_size)
 
+    async def list_published_collections_offset(
+        self, user_id: str, offset: int = 0, limit: int = 50
+    ) -> view_models.SharedCollectionList:
+        """List all published Collections in marketplace with offset-based pagination"""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+        
+        # Convert offset to page for existing method
+        page = (offset // limit) + 1
+        collections_data, total = await self.db_ops.list_published_collections_with_subscription_status(
+            user_id=user_id, page=page, page_size=limit
+        )
+
+        # Convert to SharedCollection objects
+        collections = []
+        for data in collections_data:
+            # Parse collection config and convert to SharedCollectionConfig
+            collection_config = parseCollectionConfig(data["config"])
+            shared_config = convertToSharedCollectionConfig(collection_config)
+
+            shared_collection = view_models.SharedCollection(
+                id=data["id"],
+                title=data["title"],
+                description=data["description"],
+                owner_user_id=data["owner_user_id"],
+                owner_username=data["owner_username"],
+                subscription_id=data["subscription_id"],
+                gmt_subscribed=data["gmt_subscribed"],
+                subscription_count=data.get("subscription_count", 0),
+                config=shared_config,
+            )
+            collections.append(shared_collection)
+
+        return OffsetPaginationHelper.build_response(collections, total, offset, limit)
+
     async def subscribe_collection(self, user_id: str, collection_id: str) -> view_models.SharedCollection:
         """Subscribe to Collection"""
         # 1. Find Collection's corresponding published marketplace record (status = 'PUBLISHED', gmt_deleted IS NULL)
@@ -242,6 +276,40 @@ class MarketplaceService:
             collections.append(shared_collection)
 
         return view_models.SharedCollectionList(items=collections, total=total, page=page, page_size=page_size)
+
+    async def list_user_subscribed_collections_offset(
+        self, user_id: str, offset: int = 0, limit: int = 50
+    ) -> view_models.SharedCollectionList:
+        """Get all active subscribed Collections for user with offset-based pagination"""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+        
+        # Convert offset to page for existing method
+        page = (offset // limit) + 1
+        collections_data, total = await self.db_ops.list_user_subscribed_collections(
+            user_id=user_id, page=page, page_size=limit
+        )
+
+        # Convert to SharedCollection objects
+        collections = []
+        for data in collections_data:
+            # Parse collection config and convert to SharedCollectionConfig
+            collection_config = parseCollectionConfig(data["config"])
+            shared_config = convertToSharedCollectionConfig(collection_config)
+
+            shared_collection = view_models.SharedCollection(
+                id=data["id"],
+                title=data["title"],
+                description=data["description"],
+                owner_user_id=data["owner_user_id"],
+                owner_username=data["owner_username"],
+                subscription_id=data["subscription_id"],
+                gmt_subscribed=data["gmt_subscribed"],
+                subscription_count=data.get("subscription_count", 0),
+                config=shared_config,
+            )
+            collections.append(shared_collection)
+
+        return OffsetPaginationHelper.build_response(collections, total, offset, limit)
 
     async def cleanup_collection_marketplace_data(self, collection_id: str) -> None:
         """Cleanup marketplace data when collection is deleted"""

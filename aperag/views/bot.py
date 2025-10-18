@@ -22,6 +22,7 @@ from aperag.service.bot_service import bot_service
 from aperag.service.flow_service import flow_service_global
 from aperag.utils.audit_decorator import audit
 from aperag.views.auth import required_user
+from aperag.views.dependencies import pagination_params
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,12 @@ async def create_bot_view(
 
 
 @router.get("/bots")
-async def list_bots_view(request: Request, user: User = Depends(required_user)) -> view_models.BotList:
-    return await bot_service.list_bots(str(user.id))
+async def list_bots_view(
+    request: Request, 
+    pagination: dict = Depends(pagination_params),
+    user: User = Depends(required_user)
+) -> view_models.OffsetPaginatedResponse[view_models.Bot]:
+    return await bot_service.list_bots(str(user.id), pagination["offset"], pagination["limit"])
 
 
 @router.get("/bots/{bot_id}")

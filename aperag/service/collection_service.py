@@ -198,6 +198,90 @@ class CollectionService:
             items=paginated_items, pageResult=view_models.PageResult(total=len(items), page=page, page_size=page_size)
         )
 
+    async def list_collections_view_offset(
+        self, user_id: str, include_subscribed: bool = True, offset: int = 0, limit: int = 50
+    ) -> view_models.OffsetPaginatedResponse[view_models.CollectionView]:
+        """
+        Get user's collection list with offset-based pagination
+
+        Args:
+            user_id: User ID
+            include_subscribed: Whether to include subscribed collections, default True
+            offset: Number of items to skip from the beginning
+            limit: Maximum number of items to return
+        """
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+        
+        items = []
+
+        # 1. Get user's owned collections with marketplace info
+        owned_collections_data = await self.db_ops.query_collections_with_marketplace_info(user_id)
+
+        for row in owned_collections_data:
+            is_published = row.marketplace_status == "PUBLISHED"
+            items.append(
+                view_models.CollectionView(
+                    id=row.id,
+                    title=row.title,
+                    description=row.description,
+                    type=row.type,
+                    status=row.status,
+                    created=row.gmt_created,
+                    updated=row.gmt_updated,
+                    is_published=is_published,
+                    published_at=row.published_at if is_published else None,
+                    owner_user_id=row.user,
+                    owner_username=row.owner_username,
+                    subscription_id=None,  # Own collection, subscription_id is None
+                    subscribed_at=None,
+                )
+            )
+
+        # 2. Get subscribed collections if needed (optimized - no N+1 queries)
+        if include_subscribed:
+            try:
+                # Get subscribed collections data with all needed fields in one query
+                subscribed_collections_data, _ = await self.db_ops.list_user_subscribed_collections(
+                    user_id,
+                    page=1,
+                    page_size=1000,  # Get all subscriptions for now
+                )
+
+                for data in subscribed_collections_data:
+                    is_published = data["marketplace_status"] == "PUBLISHED"
+                    items.append(
+                        view_models.CollectionView(
+                            id=data["id"],
+                            title=data["title"],
+                            description=data["description"],
+                            type=data["type"],
+                            status=data["status"],
+                            created=data["gmt_created"],
+                            updated=data["gmt_updated"],
+                            is_published=is_published,
+                            published_at=data["published_at"] if is_published else None,
+                            owner_user_id=data["owner_user_id"],
+                            owner_username=data["owner_username"],
+                            subscription_id=data["subscription_id"],
+                            subscribed_at=data["gmt_subscribed"],
+                        )
+                    )
+            except Exception as e:
+                # If getting subscriptions fails, log and continue with owned collections
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to get subscribed collections for user {user_id}: {e}")
+
+        # 3. Sort by update time
+        items.sort(key=lambda x: x.updated or x.created, reverse=True)
+
+        # 4. Apply offset-based pagination
+        total = len(items)
+        paginated_items = items[offset:offset + limit] if offset < total else []
+
+        return OffsetPaginationHelper.build_response(paginated_items, total, offset, limit)
+
     async def get_collection(self, user: str, collection_id: str) -> view_models.Collection:
         from aperag.exceptions import CollectionNotFoundException
 

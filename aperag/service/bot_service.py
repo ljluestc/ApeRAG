@@ -99,9 +99,19 @@ class BotService:
 
         return await self.build_bot_response(bot)
 
-    async def list_bots(self, user: str) -> view_models.BotList:
-        bots = await self.db_ops.query_bots([user])
-        return BotList(items=[await self.build_bot_response(bot) for bot in bots])
+    async def list_bots(self, user: str, offset: int = 0, limit: int = 50) -> view_models.OffsetPaginatedResponse[view_models.Bot]:
+        """List bots with offset-based pagination"""
+        from aperag.utils.offset_pagination import OffsetPaginationHelper
+        
+        # Get total count
+        total = await self.db_ops.query_bots_count([user])
+        
+        # Get paginated results
+        bots = await self.db_ops.query_bots([user], offset=offset, limit=limit)
+        
+        # Build response
+        bot_responses = [await self.build_bot_response(bot) for bot in bots]
+        return OffsetPaginationHelper.build_response(bot_responses, total, offset, limit)
 
     async def get_bot(self, user: str, bot_id: str) -> view_models.Bot:
         bot = await self.db_ops.query_bot(user, bot_id)

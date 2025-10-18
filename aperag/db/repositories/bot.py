@@ -33,21 +33,25 @@ class AsyncBotRepositoryMixin(AsyncRepositoryProtocol):
 
         return await self._execute_query(_query)
 
-    async def query_bots(self, users: List[str]):
+    async def query_bots(self, users: List[str], offset: int = 0, limit: int = None):
         async def _query(session):
             stmt = (
                 select(Bot).where(Bot.user.in_(users), Bot.status != BotStatus.DELETED).order_by(desc(Bot.gmt_created))
             )
+            if offset > 0:
+                stmt = stmt.offset(offset)
+            if limit is not None:
+                stmt = stmt.limit(limit)
             result = await session.execute(stmt)
             return result.scalars().all()
 
         return await self._execute_query(_query)
 
-    async def query_bots_count(self, user: str):
+    async def query_bots_count(self, users: List[str]):
         async def _query(session):
             from sqlalchemy import func
 
-            stmt = select(func.count()).select_from(Bot).where(Bot.user == user, Bot.status != BotStatus.DELETED)
+            stmt = select(func.count()).select_from(Bot).where(Bot.user.in_(users), Bot.status != BotStatus.DELETED)
             return await session.scalar(stmt)
 
         return await self._execute_query(_query)
