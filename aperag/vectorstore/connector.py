@@ -13,4 +13,4 @@ class VectorStoreConnectorAdaptor:
 
                 self.connector = QdrantVectorStoreConnector(ctx, **kwargs)
             case _:
-                raise ValueError("unsupported vector store type:", vector_store_type)
+                raise ValueError(f"unsupported vector store type: {vector_store_type}")

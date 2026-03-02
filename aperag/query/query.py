@@ -40,10 +40,12 @@ class QueryResult(BaseModel):
 def get_packed_answer(results, limit_length: Optional[int] = 0) -> str:
     text_chunks = []
     for r in results:
+        text = r.text or ""
         prefix = ""
-        if r.metadata.get("url"):
-            prefix = "The following information is from: " + r.metadata.get("url") + "\n"
-        text_chunks.append(prefix + r.text)
+        metadata = r.metadata or {}
+        if metadata.get("url"):
+            prefix = "The following information is from: " + metadata.get("url") + "\n"
+        text_chunks.append(prefix + text)
     answer_text = "\n\n".join(text_chunks)
     if limit_length != 0:
         return answer_text[:limit_length]
