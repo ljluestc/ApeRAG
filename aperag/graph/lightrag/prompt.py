@@ -36,14 +36,10 @@ from __future__ import annotations
 from typing import Any
 
 GRAPH_FIELD_SEP = "<SEP>"
-
-PROMPTS: dict[str, Any] = {}
-
-PROMPTS["DEFAULT_TUPLE_DELIMITER"] = "<|>"
-PROMPTS["DEFAULT_RECORD_DELIMITER"] = "##"
-PROMPTS["DEFAULT_COMPLETION_DELIMITER"] = "<|COMPLETE|>"
-
-PROMPTS["DEFAULT_ENTITY_TYPES"] = [
+DEFAULT_TUPLE_DELIMITER = "<|>"
+DEFAULT_RECORD_DELIMITER = "##"
+DEFAULT_COMPLETION_DELIMITER = "<|COMPLETE|>"
+DEFAULT_ENTITY_TYPES = [
     "organization",
     "person",
     "geo",
@@ -54,13 +50,16 @@ PROMPTS["DEFAULT_ENTITY_TYPES"] = [
     "category",
 ]
 
+PROMPTS: dict[str, Any] = {}
+
+# Keys: language, entity_types, tuple_delimiter, record_delimiter, completion_delimiter, examples, input_text
 PROMPTS["entity_extraction"] = """---Goal---
 Given a text document that is potentially relevant to this activity and a list of entity types, identify all entities of those types from the text and all relationships among the identified entities.
 Use {language} as output language.
 
 ---Steps---
 1. Identify all entities. For each identified entity, extract the following information:
-- entity_name: Full Name of the entity, must use **same language** as input text, it's important. If English, capitalized the name.
+- entity_name: Full Name of the entity, must use **same language** as Real Data Text, it's important. If English, capitalized the name.
 - entity_type: One of the following types: [{entity_types}]
 - entity_description: Comprehensive description of the entity's attributes and activities
 Format each entity as ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
@@ -95,6 +94,7 @@ Text:
 ######################
 Output:"""
 
+# Keys: tuple_delimiter, record_delimiter, completion_delimiter  (rendered into entity_extraction via {examples})
 PROMPTS["entity_extraction_examples"] = [
     """Example 1:
 
@@ -211,6 +211,7 @@ Output:
 #############################""",
 ]
 
+# Keys: language, entity_name, description_list
 PROMPTS[
     "summarize_entity_descriptions"
 ] = """You are a helpful assistant responsible for generating a comprehensive summary of the data provided below.
@@ -228,13 +229,14 @@ Description List: {description_list}
 Output:
 """
 
+# Keys: language, entity_types, tuple_delimiter, record_delimiter, completion_delimiter
 PROMPTS["entity_continue_extraction"] = """
 MANY entities and relationships were missed in the last extraction.
 
 ---Remember Steps---
 
 1. Identify all entities. For each identified entity, extract the following information:
-- entity_name: Name of the entity, use same language as input text. If English, capitalized the name.
+- entity_name: Name of the entity, use same language as Real Data Text. If English, capitalized the name.
 - entity_type: One of the following types: [{entity_types}]
 - entity_description: Comprehensive description of the entity's attributes and activities
 Format each entity as ("entity"{tuple_delimiter}<entity_name>{tuple_delimiter}<entity_type>{tuple_delimiter}<entity_description>)
@@ -260,6 +262,7 @@ Format the content-level key words as ("content_keywords"{tuple_delimiter}<high_
 Add them below using the same format:\n
 """.strip()
 
+# Keys: (none)
 PROMPTS["entity_if_loop_extraction"] = """
 ---Goal---'
 
@@ -270,42 +273,10 @@ It appears some entities may have still been missed.
 Answer ONLY by `YES` OR `NO` if there are still entities that need to be added.
 """.strip()
 
+# Keys: (none)
 PROMPTS["fail_response"] = "Sorry, I'm not able to provide an answer to that question.[no-context]"
 
-PROMPTS["rag_response"] = """---Role---
-
-You are a helpful assistant responding to user query about Knowledge Graph and Document Chunks provided in JSON format below.
-
-
----Goal---
-
-Generate a concise response based on Knowledge Base and follow Response Rules, considering both the conversation history and the current query. Summarize all information in the provided Knowledge Base, and incorporating general knowledge relevant to the Knowledge Base. Do not include information not provided by Knowledge Base.
-
-When handling relationships with timestamps:
-1. Each relationship has a "created_at" timestamp indicating when we acquired this knowledge
-2. When encountering conflicting relationships, consider both the semantic content and the timestamp
-3. Don't automatically prefer the most recently created relationships - use judgment based on the context
-4. For time-specific queries, prioritize temporal information in the content before considering creation timestamps
-
----Conversation History---
-{history}
-
----Knowledge Graph and Document Chunks---
-{context_data}
-
----Response Rules---
-
-- Target format and length: {response_type}
-- Use markdown formatting with appropriate section headings
-- Please respond in the same language as the user's question.
-- Ensure the response maintains continuity with the conversation history.
-- List up to 5 most important reference sources at the end under "References" section. Clearly indicating whether each source is from Knowledge Graph (KG) or Document Chunks (DC), and include the file path if available, in the following format: [KG/DC] file_path
-- If you don't know the answer, just say so.
-- Do not make anything up. Do not include information not provided by the Knowledge Base.
-- Addtional user prompt: {user_prompt}
-
-Response:"""
-
+# Keys: examples, history, query
 PROMPTS["keywords_extraction"] = """---Role---
 
 You are a helpful assistant tasked with identifying both high-level and low-level keywords in the user's query and conversation history.
@@ -335,11 +306,12 @@ Conversation History:
 
 Current Query: {query}
 ######################
-The `Output` should be human text, not unicode characters. Keep the same language as `Query`.
+The `Output` should be human text, not unicode characters. Keep the same language as `Current Query`.
 Output:
 
 """
 
+# Keys: (none, static examples rendered into keywords_extraction via {examples})
 PROMPTS["keywords_extraction_examples"] = [
     """Example 1:
 
@@ -373,39 +345,7 @@ Output:
 #############################""",
 ]
 
-PROMPTS["naive_rag_response"] = """---Role---
-
-You are a helpful assistant responding to user query about Document Chunks provided provided in JSON format below.
-
----Goal---
-
-Generate a concise response based on Document Chunks and follow Response Rules, considering both the conversation history and the current query. Summarize all information in the provided Document Chunks, and incorporating general knowledge relevant to the Document Chunks. Do not include information not provided by Document Chunks.
-
-When handling content with timestamps:
-1. Each piece of content has a "created_at" timestamp indicating when we acquired this knowledge
-2. When encountering conflicting information, consider both the content and the timestamp
-3. Don't automatically prefer the most recent content - use judgment based on the context
-4. For time-specific queries, prioritize temporal information in the content before considering creation timestamps
-
----Conversation History---
-{history}
-
----Document Chunks(DC)---
-{content_data}
-
----Response Rules---
-
-- Target format and length: {response_type}
-- Use markdown formatting with appropriate section headings
-- Please respond in the same language as the user's question.
-- Ensure the response maintains continuity with the conversation history.
-- List up to 5 most important reference sources at the end under "References" section. Clearly indicating each source from Document Chunks(DC), and include the file path if available, in the following format: [DC] file_path
-- If you don't know the answer, just say so.
-- Do not include information not provided by the Document Chunks.
-- Addtional user prompt: {user_prompt}
-
-Response:"""
-
+# Keys: tuple_delimiter, record_delimiter, completion_delimiter, graph_field_sep, entities_list
 PROMPTS["batch_merge_analysis"] = """---Goal---
 Given a list of entities from a knowledge graph, identify groups of entities that should be merged because they refer to the EXACT SAME real-world object/individual/specific instance.
 
