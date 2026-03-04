@@ -37,7 +37,14 @@ import { cn } from '@/lib/utils';
 import { useInterval } from 'ahooks';
 import { motion } from 'framer-motion';
 import _ from 'lodash';
-import { Bot, Globe, LoaderCircle, Paperclip, Trash2 } from 'lucide-react';
+import {
+  BarChart3,
+  Bot,
+  Globe,
+  LoaderCircle,
+  Paperclip,
+  Trash2,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { defaultStyles, FileIcon } from 'react-file-icon';
@@ -540,6 +547,25 @@ export const ChatInput = ({
                     </Toggle>
                   </TooltipTrigger>
                   <TooltipContent>{page_chat('web_search')}</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="cursor-pointer"
+                      disabled={disabled || loading}
+                      onClick={() => {
+                        toast.info(
+                          'Model comparison: send the same query to multiple models. Coming soon!',
+                        );
+                      }}
+                    >
+                      <BarChart3 />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Compare Models</TooltipContent>
                 </Tooltip>
 
                 <Select

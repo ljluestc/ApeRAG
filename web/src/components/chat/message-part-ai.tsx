@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import _ from 'lodash';
 import { AlertCircleIcon } from 'lucide-react';
 import { useCallback } from 'react';
+import { injectCitationBadges } from './message-citations';
 import { MessageCollapseContent } from './message-collapse-content';
 
 export const MessagePartAi = ({
@@ -49,7 +50,7 @@ export const MessagePartAi = ({
         </MessageCollapseContent>
       );
     case 'message':
-      return <Markdown>{part.data}</Markdown>;
+      return <Markdown>{injectCitationBadges(part.data || '')}</Markdown>;
     case 'stop':
       return '';
     default:

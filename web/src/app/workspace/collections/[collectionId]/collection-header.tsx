@@ -31,7 +31,9 @@ import {
   FlaskConical,
   GitGraph,
   History,
+  LoaderCircle,
   MailQuestionMark,
+  Network,
   Settings,
   Trash,
   VectorSquare,
@@ -39,7 +41,7 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { CollectionDelete } from './collection-delete';
 
@@ -57,6 +59,22 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
   const page_documents = useTranslations('page_documents');
   const page_graph = useTranslations('page_graph');
   const page_evaluation = useTranslations('page_evaluation');
+  const [buildingGraph, setBuildingGraph] = useState(false);
+
+  const handleBuildGraph = useCallback(async () => {
+    if (!collection?.id) return;
+    setBuildingGraph(true);
+    try {
+      await apiClient.graphApi.collectionsCollectionIdGraphsGet({
+        collectionId: collection.id,
+      });
+      toast.success('Knowledge graph build triggered. Visit the Graph tab to view.');
+    } catch {
+      toast.error('Failed to build knowledge graph. Check collection settings.');
+    } finally {
+      setBuildingGraph(false);
+    }
+  }, [collection?.id]);
 
   const urls = useMemo(() => {
     return {
@@ -117,6 +135,21 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
             </div>
           </CardDescription>
           <CardAction className="flex flex-row items-center gap-4">
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer gap-1.5"
+              disabled={buildingGraph}
+              onClick={handleBuildGraph}
+            >
+              {buildingGraph ? (
+                <LoaderCircle className="size-3.5 animate-spin" />
+              ) : (
+                <Network className="size-3.5" />
+              )}
+              Build Graph
+            </Button>
+
             {share && (
               <Badge variant={share.is_published ? 'default' : 'secondary'}>
                 {share.is_published

@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 import _ from 'lodash';
 import { Bot, LoaderCircle } from 'lucide-react';
 import { useMemo } from 'react';
+import { CitationSources, ResponseMetaBar } from './message-citations';
+import type { ResponseMeta } from './message-citations';
 import { MessageFeedback } from './message-feedback';
 import { MessagePartAi } from './message-part-ai';
 import { MessageReference } from './message-reference';
@@ -26,6 +28,32 @@ export const MessagePartsAi = ({
     () => parts.findLast((part) => part.references)?.references || [],
     [parts],
   );
+
+  const responseMeta = useMemo((): ResponseMeta | null => {
+    // metadata may be present on the message object from the backend
+    // even though it's not in the generated ChatMessage type
+    const last = parts.findLast((p) => p.type === 'stop' || p.type === 'message');
+    if (!last) return null;
+    const m = (last as Record<string, unknown>).metadata as
+      | Record<string, unknown>
+      | undefined;
+    if (!m) {
+      // Still show source count if we have references
+      if (references.length) {
+        return { num_sources: references.length };
+      }
+      return null;
+    }
+    return {
+      model_used: m.model_used as string | undefined,
+      latency_ms: m.latency_ms as number | undefined,
+      retrieval_ms: m.retrieval_ms as number | undefined,
+      generation_ms: m.generation_ms as number | undefined,
+      tokens_used: m.tokens_used as ResponseMeta['tokens_used'],
+      grounding_score: m.grounding_score as number | undefined,
+      num_sources: references.length || undefined,
+    };
+  }, [parts, references]);
 
   return (
     <div className="flex w-max flex-row gap-4">
@@ -55,6 +83,10 @@ export const MessagePartsAi = ({
             ))
           )}
         </Card>
+        {!_.isEmpty(references) && (
+          <CitationSources references={references} />
+        )}
+        {responseMeta && <ResponseMetaBar meta={responseMeta} />}
         <div className="flex flex-row items-center gap-2">
           <MessageTimestamp parts={parts} className="mr-2" />
           <Separator
