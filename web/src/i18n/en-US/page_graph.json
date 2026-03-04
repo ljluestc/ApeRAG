@@ -2,6 +2,8 @@
   "metadata": {
     "title": "Knowledge Graph"
   },
+  "enable_kg_prompt": "Knowledge graph is not enabled for this collection. Enable it in collection settings to build and visualize the graph from your documents.",
+  "enable_kg_cta": "Enable in Settings",
   "node_group": "Node Group",
 
   "node_search": "Node search",

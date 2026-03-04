@@ -6,6 +6,11 @@ import { cn } from '@/lib/utils';
 import _ from 'lodash';
 import { Bot, LoaderCircle } from 'lucide-react';
 import { useMemo } from 'react';
+import {
+  CitationSources,
+  ResponseMetaBar,
+  type ResponseMeta,
+} from './message-citations';
 import { MessageFeedback } from './message-feedback';
 import { MessagePartAi } from './message-part-ai';
 import { MessageReference } from './message-reference';
@@ -26,6 +31,15 @@ export const MessagePartsAi = ({
     () => parts.findLast((part) => part.references)?.references || [],
     [parts],
   );
+
+  const responseMeta = useMemo((): ResponseMeta | undefined => {
+    const part = parts.findLast((p) => p.references);
+    const refs = part?.references;
+    if (!refs?.length) return undefined;
+    const meta = (part as { meta?: ResponseMeta })?.meta;
+    if (meta) return meta;
+    return { num_sources: refs.length };
+  }, [parts]);
 
   return (
     <div className="flex w-max flex-row gap-4">
@@ -53,6 +67,12 @@ export const MessagePartsAi = ({
                 loading={loading}
               />
             ))
+          )}
+          {responseMeta && !pending && (
+            <ResponseMetaBar meta={responseMeta} />
+          )}
+          {references.length > 0 && !pending && (
+            <CitationSources references={references} />
           )}
         </Card>
         <div className="flex flex-row items-center gap-2">

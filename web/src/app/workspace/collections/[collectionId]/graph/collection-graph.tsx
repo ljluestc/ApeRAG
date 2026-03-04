@@ -5,6 +5,7 @@ import {
   KnowledgeGraph,
   MergeSuggestionsResponse,
 } from '@/api';
+import { useCollectionContext } from '@/components/providers/collection-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { apiClient } from '@/lib/api/client';
@@ -35,10 +36,13 @@ import {
   LoaderCircle,
   Maximize,
   Minimize,
+  Settings,
+  VectorSquare,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CollectionGraphNodeDetail } from './collection-graph-node-detail';
@@ -57,9 +61,16 @@ export const CollectionGraph = ({
   marketplace: boolean;
 }) => {
   const params = useParams();
+  const { collection } = useCollectionContext();
   const [fullscreen, setFullscreen] = useState<boolean>(false);
+  const [kgDisabled, setKgDisabled] = useState<boolean>(false);
   const { resolvedTheme } = useTheme();
   const page_graph = useTranslations('page_graph');
+
+  const isKgDisabled =
+    kgDisabled ||
+    (!marketplace &&
+      collection?.config?.enable_knowledge_graph === false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,54 +110,87 @@ export const CollectionGraph = ({
 
   const getGraphData = useCallback(async () => {
     if (typeof params.collectionId !== 'string') return;
-    setLoading(true);
-
-    let data: KnowledgeGraph;
-
-    if (!marketplace) {
-      const res = await apiClient.graphApi.collectionsCollectionIdGraphsGet(
-        {
-          collectionId: params.collectionId,
-        },
-        {
-          timeout: 1000 * 20,
-        },
-      );
-      data = res.data;
-    } else {
-      const res =
-        await apiClient.defaultApi.marketplaceCollectionsCollectionIdGraphGet(
-          {
-            collectionId: params.collectionId,
-          },
-          {
-            timeout: 1000 * 20,
-          },
-        );
-      data = res.data as KnowledgeGraph;
+    if (
+      !marketplace &&
+      collection?.config?.enable_knowledge_graph === false
+    ) {
+      setLoading(false);
+      return;
     }
+    setLoading(true);
+    setKgDisabled(false);
 
-    const nodes =
-      data.nodes?.map((n) => {
-        const targetCount = data.edges.filter(
-          (edg) => edg.target === n.id,
-        ).length;
-        const sourceCount = data.edges.filter(
-          (edg) => edg.source === n.id,
-        ).length;
-        return {
-          ...n,
-          value: Math.max(targetCount, sourceCount, NODE_MIN),
-        };
-      }) || [];
-    const links = data.edges || [];
+    try {
+      let data: KnowledgeGraph;
 
-    setGraphData({ nodes, links });
+      if (!marketplace) {
+        const res =
+          await apiClient.graphApi.collectionsCollectionIdGraphsGet(
+            {
+              collectionId: params.collectionId,
+            },
+            {
+              timeout: 1000 * 20,
+            },
+          );
+        data = res.data;
+      } else {
+        const res =
+          await apiClient.defaultApi.marketplaceCollectionsCollectionIdGraphGet(
+            {
+              collectionId: params.collectionId,
+            },
+            {
+              timeout: 1000 * 20,
+            },
+          );
+        data = res.data as KnowledgeGraph;
+      }
 
-    setAllEntities(_.groupBy(nodes, (n) => n.properties.entity_type));
+      const nodes =
+        data.nodes?.map((n) => {
+          const targetCount = data.edges.filter(
+            (edg) => edg.target === n.id,
+          ).length;
+          const sourceCount = data.edges.filter(
+            (edg) => edg.source === n.id,
+          ).length;
+          return {
+            ...n,
+            value: Math.max(targetCount, sourceCount, NODE_MIN),
+          };
+        }) || [];
+      const links = data.edges || [];
 
-    setLoading(false);
-  }, [NODE_MIN, marketplace, params.collectionId]);
+      setGraphData({ nodes, links });
+
+      setAllEntities(_.groupBy(nodes, (n) => n.properties.entity_type));
+    } catch (err) {
+      let msg = err instanceof Error ? err.message : String(err);
+      if (err && typeof err === 'object' && 'response' in err) {
+        const res = (err as { response?: { data?: { detail?: unknown } } })
+          .response;
+        const detail = res?.data?.detail;
+        if (typeof detail === 'string') msg = detail;
+        else if (Array.isArray(detail) && detail[0]?.msg) msg = detail[0].msg;
+        else if (detail && typeof detail === 'object' && 'message' in detail)
+          msg = String((detail as { message: unknown }).message);
+      }
+      if (
+        msg.includes('Knowledge graph is not enabled') ||
+        msg.toLowerCase().includes('knowledge graph')
+      ) {
+        setKgDisabled(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    NODE_MIN,
+    collection?.config?.enable_knowledge_graph,
+    marketplace,
+    params.collectionId,
+  ]);
 
   const getMergeSuggestions = useCallback(async () => {
     if (typeof params.collectionId !== 'string' || marketplace) return;
@@ -223,6 +267,7 @@ export const CollectionGraph = ({
   }, [activeNode, graphData?.links, highlightLinks, highlightNodes]);
 
   useEffect(() => {
+    if (isKgDisabled) return;
     getGraphData();
     getMergeSuggestions();
     // init the graph config
@@ -241,7 +286,39 @@ export const CollectionGraph = ({
     //   .d3Force('charge', d3.forceManyBody().strength(-40))
     //   .d3Force('x', d3.forceX())
     //   .d3Force('y', d3.forceY());
-  }, [getGraphData, getMergeSuggestions]);
+  }, [getGraphData, getMergeSuggestions, isKgDisabled]);
+
+  if (isKgDisabled) {
+    return (
+      <div
+        className={cn(
+          'flex flex-1 flex-col items-center justify-center gap-4 p-8',
+          {
+            fixed: fullscreen,
+            'bg-background': fullscreen,
+            'z-49': fullscreen,
+          },
+        )}
+      >
+        <Card className="max-w-md p-6 text-center">
+          <VectorSquare className="text-muted-foreground mx-auto mb-4 size-12" />
+          <p className="text-muted-foreground mb-4">
+            {page_graph('enable_kg_prompt')}
+          </p>
+          {!marketplace && (
+            <Button asChild>
+              <Link
+                href={`/workspace/collections/${params.collectionId}/settings`}
+              >
+                <Settings className="mr-2 size-4" />
+                {page_graph('enable_kg_cta')}
+              </Link>
+            </Button>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div

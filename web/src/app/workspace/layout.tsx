@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation';
 
 import { SideBarMenuChats } from '@/components/chat/sidebar-menu-chats';
 import { BotProvider } from '@/components/providers/bot-provider';
+import { WorkspaceAiFeatures } from '@/components/workspace-ai-features';
 import { MenuFooter } from './menu-footer';
 import { MenuMain } from './menu-main';
 
@@ -67,6 +68,7 @@ export default async function Layout({
           <MenuFooter />
         </Sidebar>
         <SidebarInset>{children}</SidebarInset>
+        <WorkspaceAiFeatures />
       </SidebarProvider>
     </BotProvider>
   );

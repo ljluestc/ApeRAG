@@ -1,5 +1,6 @@
 import { ChatMessage } from '@/api';
 import { Markdown } from '@/components/markdown';
+import { injectCitationBadges } from '@/components/chat/message-citations';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import _ from 'lodash';
 import { AlertCircleIcon } from 'lucide-react';
@@ -49,7 +50,9 @@ export const MessagePartAi = ({
         </MessageCollapseContent>
       );
     case 'message':
-      return <Markdown>{part.data}</Markdown>;
+      return (
+        <Markdown>{injectCitationBadges(part.data || '')}</Markdown>
+      );
     case 'stop':
       return '';
     default:

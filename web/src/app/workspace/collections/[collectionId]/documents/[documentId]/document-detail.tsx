@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MiniMap } from '@/components/mini-map';
 import { cn } from '@/lib/utils';
 import _ from 'lodash';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
@@ -36,7 +37,13 @@ export const DocumentDetail = ({
   const [numPages, setNumPages] = useState<number>(0);
 
   const isPdf = useMemo(() => {
-    return Boolean(documentPreview.doc_filename?.match(/\.pdf/));
+    return Boolean(documentPreview.doc_filename?.match(/\.pdf$/i));
+  }, [documentPreview.doc_filename]);
+
+  const isPpt = useMemo(() => {
+    return Boolean(
+      documentPreview.doc_filename?.match(/\.(ppt|pptx)$/i),
+    );
   }, [documentPreview.doc_filename]);
 
   useEffect(() => {
@@ -91,17 +98,42 @@ export const DocumentDetail = ({
             <TabsList>
               <TabsTrigger value="markdown">Markdown</TabsTrigger>
               {isPdf && <TabsTrigger value="pdf">PDF</TabsTrigger>}
+              {isPpt && <TabsTrigger value="ppt">Presentation</TabsTrigger>}
             </TabsList>
           </div>
         </div>
 
         <TabsContent value="markdown">
-          <Card>
-            <CardContent>
-              <Markdown>{documentPreview.markdown_content}</Markdown>
-            </CardContent>
-          </Card>
+          <div className="flex flex-row gap-4">
+            <Card className="flex-1">
+              <CardContent>
+                <Markdown>{documentPreview.markdown_content}</Markdown>
+              </CardContent>
+            </Card>
+            <div className="sticky top-4 hidden self-start lg:block">
+              <MiniMap
+                markdownContent={documentPreview.markdown_content}
+              />
+            </div>
+          </div>
         </TabsContent>
+
+        {isPpt && (
+          <TabsContent value="ppt">
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-muted-foreground text-sm">
+                  PPT/PPTX files are converted to Markdown. Use the Markdown tab
+                  for the full content. For slide-by-slide viewing, download the
+                  original file.
+                </p>
+                <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+                  <Markdown>{documentPreview.markdown_content}</Markdown>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {isPdf && (
           <TabsContent value="pdf">
