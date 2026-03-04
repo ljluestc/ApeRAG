@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MiniMap } from '@/components/mini-map';
 import { cn } from '@/lib/utils';
 import _ from 'lodash';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
@@ -96,11 +97,18 @@ export const DocumentDetail = ({
         </div>
 
         <TabsContent value="markdown">
-          <Card>
-            <CardContent>
-              <Markdown>{documentPreview.markdown_content}</Markdown>
-            </CardContent>
-          </Card>
+          <div className="flex flex-row gap-4">
+            <Card className="flex-1">
+              <CardContent>
+                <Markdown>{documentPreview.markdown_content}</Markdown>
+              </CardContent>
+            </Card>
+            <div className="sticky top-4 hidden self-start lg:block">
+              <MiniMap
+                markdownContent={documentPreview.markdown_content}
+              />
+            </div>
+          </div>
         </TabsContent>
 
         {isPdf && (

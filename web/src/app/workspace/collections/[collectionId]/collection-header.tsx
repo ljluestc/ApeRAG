@@ -29,6 +29,7 @@ import {
   EllipsisVertical,
   Files,
   FlaskConical,
+  GitGraph,
   History,
   MailQuestionMark,
   Settings,
@@ -192,21 +193,31 @@ export const CollectionHeader = ({ className }: { className?: string }) => {
             </Link>
           </Button>
 
-          {collection.config?.enable_knowledge_graph && (
-            <Button
-              asChild
-              data-active={Boolean(pathname.match(urls.graph))}
-              className="hover:border-b-primary data-[active=true]:border-b-primary h-10 rounded-none border-y-2 border-y-transparent px-1 has-[>svg]:px-2"
-              variant="ghost"
-            >
-              <Link href={urls.graph}>
+          <Button
+            asChild
+            data-active={Boolean(pathname.match(urls.graph))}
+            className="hover:border-b-primary data-[active=true]:border-b-primary h-10 rounded-none border-y-2 border-y-transparent px-1 has-[>svg]:px-2"
+            variant="ghost"
+          >
+            <Link href={urls.graph}>
+              {collection.config?.enable_knowledge_graph ? (
                 <VectorSquare />
-                <span className="hidden sm:inline">
-                  {page_graph('metadata.title')}
-                </span>
-              </Link>
-            </Button>
-          )}
+              ) : (
+                <GitGraph />
+              )}
+              <span className="hidden sm:inline">
+                {page_graph('metadata.title')}
+              </span>
+              {!collection.config?.enable_knowledge_graph && (
+                <Badge
+                  variant="outline"
+                  className="ml-1 px-1 py-0 text-[9px]"
+                >
+                  Build
+                </Badge>
+              )}
+            </Link>
+          </Button>
 
           {/* <Button
             asChild

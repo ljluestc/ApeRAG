@@ -10,6 +10,7 @@ import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { ParserSettings } from './parser-settings';
 import { QuotaSettings } from './quota-settings';
+import { SsoSettings } from './sso-settings';
 
 export async function generateMetadata(): Promise<Metadata> {
   const admin_config = await getTranslations('admin_config');
@@ -23,9 +24,10 @@ export default async function Page() {
   const serverApi = await getServerApi();
   const admin_config = await getTranslations('admin_config');
 
-  const [resSettings, resSystemDefaultQuotas] = await Promise.all([
+  const [resSettings, resSystemDefaultQuotas, resConfig] = await Promise.all([
     serverApi.defaultApi.settingsGet(),
     serverApi.quotasApi.systemDefaultQuotasGet(),
+    serverApi.defaultApi.configGet().catch(() => ({ data: undefined })),
   ]);
 
   const settings = resSettings.data;
@@ -42,6 +44,7 @@ export default async function Page() {
         <div className="flex flex-col gap-6">
           <ParserSettings data={settings} />
           <QuotaSettings data={resSystemDefaultQuotas.data.quotas} />
+          <SsoSettings config={resConfig.data} />
         </div>
       </PageContent>
     </PageContainer>
