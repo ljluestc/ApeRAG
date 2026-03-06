@@ -30,20 +30,9 @@ export const MessagePartsAi = ({
   );
 
   const responseMeta = useMemo((): ResponseMeta | null => {
-    // metadata may be present on the message object from the backend
-    // even though it's not in the generated ChatMessage type
     const last = parts.findLast((p) => p.type === 'stop' || p.type === 'message');
-    if (!last) return null;
-    const m = (last as Record<string, unknown>).metadata as
-      | Record<string, unknown>
-      | undefined;
-    if (!m) {
-      // Still show source count if we have references
-      if (references.length) {
-        return { num_sources: references.length };
-      }
-      return null;
-    }
+    if (!last?.metadata) return null;
+    const m = last.metadata as Record<string, unknown>;
     return {
       model_used: m.model_used as string | undefined,
       latency_ms: m.latency_ms as number | undefined,
@@ -74,13 +63,21 @@ export const MessagePartsAi = ({
               <div className="bg-muted-foreground animate-caret-blink size-2 rounded-full delay-400"></div>
             </div>
           ) : (
-            parts.map((part, index) => (
-              <MessagePartAi
-                key={`${index}-${part.id}`}
-                part={part}
-                loading={loading}
-              />
-            ))
+            <>
+              {parts.map((part, index) => (
+                <MessagePartAi
+                  key={`${index}-${part.id}`}
+                  part={part}
+                  loading={loading}
+                />
+              ))}
+              {meta && (meta.model_used || meta.latency_ms != null || meta.tokens_used || meta.grounding_score != null) && (
+                <ResponseMetaBar meta={meta} />
+              )}
+              {!_.isEmpty(references) && (
+                <CitationSources references={references} />
+              )}
+            </>
           )}
         </Card>
         {!_.isEmpty(references) && (

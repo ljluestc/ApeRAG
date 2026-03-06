@@ -3,8 +3,7 @@ import sys
 
 from dotenv import load_dotenv
 
-# Configure pytest-asyncio
-pytest_plugins = ("pytest_asyncio",)
+# pytest_plugins moved to root conftest.py (project root) for pytest 8+ compatibility
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, project_root)

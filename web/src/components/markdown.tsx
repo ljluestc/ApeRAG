@@ -22,6 +22,7 @@ import remarkGithubAdmonitionsToDirectives from 'remark-github-admonitions-to-di
 import remarkHeaderId from 'remark-heading-id';
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
 import { AnchorLink } from './anchor-link';
+import { CitationBadge } from './chat/message-citations';
 import { ChartMermaid } from './chart-mermaid';
 import { Skeleton } from './ui/skeleton';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from './ui/table';
@@ -260,6 +261,27 @@ export const mdComponents = {
     <TableCell>{props.children}</TableCell>
   ),
 };
+
+const createCitationStrong = (onCitationClick?: (index: number) => void) =>
+  function CitationStrong(props: JSX.IntrinsicElements['strong']) {
+    const str =
+      typeof props.children === 'string'
+        ? props.children
+        : React.Children.toArray(props.children).join('');
+    const match = str.match(/^\[S(\d+)\]$/);
+    if (match) {
+      const index = parseInt(match[1], 10);
+      return (
+        <CitationBadge
+          index={index}
+          onClick={
+            onCitationClick ? () => onCitationClick(index) : undefined
+          }
+        />
+      );
+    }
+    return <strong {...props} />;
+  };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const mdRehypePlugins: any = [
