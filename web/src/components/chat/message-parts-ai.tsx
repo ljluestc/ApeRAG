@@ -71,8 +71,8 @@ export const MessagePartsAi = ({
                   loading={loading}
                 />
               ))}
-              {meta && (meta.model_used || meta.latency_ms != null || meta.tokens_used || meta.grounding_score != null) && (
-                <ResponseMetaBar meta={meta} />
+              {responseMeta && (responseMeta.model_used || responseMeta.latency_ms != null || responseMeta.tokens_used || responseMeta.grounding_score != null) && (
+                <ResponseMetaBar meta={responseMeta} />
               )}
               {!_.isEmpty(references) && (
                 <CitationSources references={references} />
@@ -80,10 +80,6 @@ export const MessagePartsAi = ({
             </>
           )}
         </Card>
-        {!_.isEmpty(references) && (
-          <CitationSources references={references} />
-        )}
-        {responseMeta && <ResponseMetaBar meta={responseMeta} />}
         <div className="flex flex-row items-center gap-2">
           <MessageTimestamp parts={parts} className="mr-2" />
           <Separator
