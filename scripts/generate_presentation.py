@@ -1,0 +1,304 @@
+#!/usr/bin/env python3
+"""Generate technical presentation PowerPoint for the ApeRAG platform with rich cloud-native visual design."""
+
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.shapes import MSO_SHAPE
+import os
+
+# ── Enhanced Color Palette (Blue Theme for ApeRAG) ──────────────────────────
+BLUE = RGBColor(0x22, 0x63, 0xEB)
+BLUE_LIGHT = RGBColor(0xBF, 0xDB, 0xFE)
+BLUE_DARK = RGBColor(0x1E, 0x40, 0xAF)
+DARK = RGBColor(0x1A, 0x1A, 0x2E)
+DARK_LIGHT = RGBColor(0x2D, 0x37, 0x4A)
+GRAY = RGBColor(0x4A, 0x55, 0x68)
+GRAY_LIGHT = RGBColor(0x71, 0x7D, 0x8B)
+LIGHT_BG = RGBColor(0xF8, 0xF9, 0xFB)
+LIGHT_BG_ACCENT = RGBColor(0xED, 0xF2, 0xF7)
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+GREEN = RGBColor(0x16, 0xA3, 0x4A)
+GREEN_LIGHT = RGBColor(0x86, 0xEF, 0xAC)
+ORANGE = RGBColor(0xEA, 0x58, 0x0C)
+ORANGE_LIGHT = RGBColor(0xFB, 0xBF, 0x24)
+PURPLE = RGBColor(0x7C, 0x3A, 0xED)
+PURPLE_LIGHT = RGBColor(0xDD, 0xD6, 0xFE)
+RED = RGBColor(0xDC, 0x26, 0x26)
+RED_LIGHT = RGBColor(0xFE, 0xCA, 0xCA)
+
+# Cloud-native log colors
+LOG_BG = RGBColor(0x1E, 0x1E, 0x1E)
+LOG_TEXT = RGBColor(0xD4, 0xD4, 0xD4)
+LOG_GREEN = RGBColor(0x98, 0xC3, 0x79)
+LOG_YELLOW = RGBColor(0xED, 0xD4, 0x00)
+LOG_BLUE = RGBColor(0x61, 0xAF, 0xEF)
+LOG_CYAN = RGBColor(0x56, 0xB6, 0xC2)
+LOG_RED = RGBColor(0xE0, 0x6C, 0x75)
+
+prs = Presentation()
+prs.slide_width = Inches(13.333)
+prs.slide_height = Inches(7.5)
+
+
+def add_rich_decorative_bg(slide, primary_color=BLUE, accent_color=BLUE_LIGHT):
+    """Add rich decorative background with gradient-like layers and cloud-native elements."""
+    fill = slide.background.fill
+    fill.solid()
+    fill.fore_color.rgb = LIGHT_BG
+
+    # Large decorative corner circles
+    corner_circles = [
+        (0, 0, 3.0, BLUE_LIGHT, 0.75),
+        (prs.slide_width - Inches(3.0), 0, 2.5, GREEN_LIGHT, 0.70),
+        (0, prs.slide_height - Inches(2.5), 2.5, PURPLE_LIGHT, 0.75),
+        (prs.slide_width - Inches(3.5), prs.slide_height - Inches(3.0), 3.0, BLUE_LIGHT, 0.70),
+    ]
+
+    for x, y, size, color, transparency in corner_circles:
+        circle = slide.shapes.add_shape(MSO_SHAPE.OVAL, x, y, Inches(size), Inches(size))
+        circle.fill.solid()
+        circle.fill.fore_color.rgb = color
+        circle.line.fill.background()
+        circle.fill.transparency = transparency
+
+    # Sidebar accent strip
+    sidebar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(0.4), prs.slide_height)
+    sidebar.fill.solid()
+    sidebar.fill.fore_color.rgb = primary_color
+    sidebar.line.fill.background()
+
+    # Top decorative bar
+    top_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(0.2))
+    top_bar.fill.solid()
+    top_bar.fill.fore_color.rgb = accent_color
+    top_bar.line.fill.background()
+
+    # Bottom footer strip
+    footer = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        0, prs.slide_height - Inches(0.25), prs.slide_width, Inches(0.25)
+    )
+    footer.fill.solid()
+    footer.fill.fore_color.rgb = DARK
+    footer.line.fill.background()
+
+    add_cloud_shapes(slide)
+    add_decorative_lines(slide, primary_color)
+
+
+def add_cloud_shapes(slide):
+    """Add decorative cloud-native icon representations."""
+    pod_positions = [
+        (prs.slide_width - Inches(1.5), Inches(0.5), 0.15, BLUE),
+        (prs.slide_width - Inches(1.2), Inches(0.8), 0.12, PURPLE),
+        (prs.slide_width - Inches(1.8), Inches(0.7), 0.13, GREEN),
+    ]
+
+    for x, y, size, color in pod_positions:
+        pod = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, Inches(size), Inches(size))
+        pod.fill.solid()
+        pod.fill.fore_color.rgb = color
+        pod.line.color.rgb = DARK
+        pod.line.width = Pt(1.5)
+        pod.fill.transparency = 0.25
+
+
+def add_decorative_lines(slide, color):
+    """Add decorative accent lines."""
+    for y_pos in [Inches(1.0), Inches(6.5)]:
+        line = slide.shapes.add_connector(
+            1, Inches(0.5), y_pos, Inches(12.5), y_pos
+        )
+        line.line.color.rgb = color
+        line.line.width = Pt(1)
+        line.line.dash_style = 2
+
+
+def add_cloud_native_logs(slide, left, top, width, height, log_entries=None):
+    """Add a cloud-native log panel to a slide."""
+    if log_entries is None:
+        log_entries = [
+            ("INFO", "2026-03-04T09:15:23Z", "aperag-api", "GraphRAG query: 'What is MCP?'", LOG_BLUE),
+            ("INFO", "2026-03-04T09:15:24Z", "neo4j", "Traversed 3 hops, found 5 entities", LOG_GREEN),
+            ("INFO", "2026-03-04T09:15:25Z", "llm-router", "Routed to Claude-3.5-Sonnet", LOG_CYAN),
+        ]
+
+    log_panel = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
+    log_panel.fill.solid()
+    log_panel.fill.fore_color.rgb = LOG_BG
+    log_panel.line.color.rgb = BLUE
+    log_panel.line.width = Pt(3)
+
+    header = slide.shapes.add_textbox(left + Inches(0.2), top + Inches(0.1), width - Inches(0.4), Inches(0.15))
+    header_tf = header.text_frame
+    header_tf.text = "📊 ApeRAG Enterprise Logs"
+    header_tf.paragraphs[0].font.size = Pt(11)
+    header_tf.paragraphs[0].font.color.rgb = LOG_CYAN
+    header_tf.paragraphs[0].font.bold = True
+
+    y_offset = top + Inches(0.3)
+    for level, timestamp, service, message, color in log_entries:
+        log_text = f"[{timestamp}] {level:8s} {service:15s} {message}"
+        text_box = slide.shapes.add_textbox(
+            left + Inches(0.2), y_offset, width - Inches(0.4), Inches(0.25)
+        )
+        text_frame = text_box.text_frame
+        text_frame.text = log_text
+        text_frame.paragraphs[0].font.name = "Courier New"
+        text_frame.paragraphs[0].font.size = Pt(9)
+        text_frame.paragraphs[0].font.color.rgb = color
+        y_offset += Inches(0.3)
+
+
+def title_bar(slide, title_text, subtitle_text=None, accent_color=BLUE):
+    """Enhanced title bar with decorative elements."""
+    bar_height = Inches(1.3)
+    shape = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        Inches(0.6), Inches(0.4), prs.slide_width - Inches(1.2), bar_height
+    )
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = RGBColor(0xE2, 0xE8, 0xF0)
+    shape.line.color.rgb = accent_color
+    shape.line.width = Pt(4)
+
+    accent_stripe = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        Inches(0.6), Inches(0.4), Inches(0.2), bar_height
+    )
+    accent_stripe.fill.solid()
+    accent_stripe.fill.fore_color.rgb = accent_color
+    accent_stripe.line.fill.background()
+
+    tf = shape.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(1.2)
+    tf.margin_top = Inches(0.3)
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+
+    p = tf.paragraphs[0]
+    p.text = title_text
+    p.font.size = Pt(30)
+    p.font.bold = True
+    p.font.color.rgb = DARK
+
+    if subtitle_text:
+        p2 = tf.add_paragraph()
+        p2.text = subtitle_text
+        p2.font.size = Pt(16)
+        p2.font.color.rgb = GRAY
+        p2.space_before = Pt(5)
+
+
+def txt(slide, left, top, width, height, text, size=18, color=DARK, bold=False, align=PP_ALIGN.LEFT):
+    """Styled text box."""
+    tb = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.text = text
+    p.font.size = Pt(size)
+    p.font.color.rgb = color
+    p.font.bold = bold
+    p.alignment = align
+    return tf
+
+
+def bullets(slide, left, top, width, height, items, size=16, color=DARK, bullet_color=BLUE):
+    """Styled bullet points."""
+    tb = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    for i, item in enumerate(items):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.text = f"\u25b8  {item}"
+        p.font.size = Pt(size)
+        p.font.color.rgb = color
+        p.space_after = Pt(8)
+    return tf
+
+
+def box(slide, left, top, width, height, title, body, border=BLUE, fill_color=WHITE, accent=True):
+    """Enhanced box with decorative accent."""
+    shape = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        Inches(left), Inches(top), Inches(width), Inches(height),
+    )
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = fill_color
+    shape.line.color.rgb = border
+    shape.line.width = Pt(3)
+
+    if accent:
+        accent_bar = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            Inches(left), Inches(top), Inches(width), Inches(0.18)
+        )
+        accent_bar.fill.solid()
+        accent_bar.fill.fore_color.rgb = border
+        accent_bar.line.fill.background()
+
+    tf = shape.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(0.25)
+    tf.margin_top = Inches(0.3) if accent else Inches(0.2)
+
+    p = tf.paragraphs[0]
+    p.text = title
+    p.font.size = Pt(16)
+    p.font.bold = True
+    p.font.color.rgb = border
+
+    if body:
+        p2 = tf.add_paragraph()
+        p2.text = body
+        p2.font.size = Pt(13)
+        p2.font.color.rgb = GRAY
+
+
+def add_footer_branding(slide, text="ApeRAG Platform"):
+    """Add footer branding strip."""
+    footer_text = slide.shapes.add_textbox(
+        Inches(0.6), prs.slide_height - Inches(0.2),
+        prs.slide_width - Inches(1.2), Inches(0.1)
+    )
+    tf = footer_text.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"\u2699\ufe0f  {text}"
+    p.font.size = Pt(11)
+    p.font.color.rgb = WHITE
+    p.font.bold = True
+    p.alignment = PP_ALIGN.LEFT
+
+
+# ═══════════════════════════════════════════════════════════
+# SLIDE 1 — Title
+# ═══════════════════════════════════════════════════════════
+s = prs.slides.add_slide(prs.slide_layouts[6])
+add_rich_decorative_bg(s, BLUE, BLUE_LIGHT)
+
+for size, color, trans in [(5.0, BLUE_LIGHT, 0.6), (4.5, GREEN_LIGHT, 0.65), (4.0, PURPLE_LIGHT, 0.7)]:
+    c = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(0.5), Inches(0.5), Inches(size), Inches(size))
+    c.fill.solid()
+    c.fill.fore_color.rgb = color
+    c.fill.transparency = trans
+    c.line.fill.background()
+
+txt(s, 1.5, 1.5, 10, 1.2, "ApeRAG", 56, BLUE, True)
+txt(s, 1.5, 2.8, 10, 0.8, "Enterprise Graph RAG & Agentic Intelligence", 28, DARK)
+txt(s, 1.5, 3.8, 10, 0.5, "Graph RAG  \u2022  Hybrid Retrieval  \u2022  MCP  \u2022  Semantic Cache  \u2022  Multi-LLM", 18, GRAY)
+txt(s, 1.5, 5.0, 8, 0.5, "Jiale Lin", 24, DARK, True)
+txt(s, 1.5, 5.5, 8, 0.4, "jeremykalilin@gmail.com  \u2022  linkedin.com/in/jiale-lin-ab03a4149", 15, GRAY)
+txt(s, 1.5, 6.2, 8, 0.4, "Technical Presentation \u2014 25 min  \u2022  github.com/ljluestc/ApeRAG", 14, GRAY)
+add_footer_branding(s, "ApeRAG Platform \u2022 Technical Presentation")
+
+# ═══════════════════════════════════════════════════════════
+# Save
+# ═══════════════════════════════════════════════════════════
+out_dir = os.path.join(os.path.dirname(__file__), "..", "docs")
+os.makedirs(out_dir, exist_ok=True)
+pptx_path = os.path.join(out_dir, "ApeRAG_Technical_Presentation.pptx")
+prs.save(pptx_path)
+print(f"Saved PPTX: {pptx_path}")
